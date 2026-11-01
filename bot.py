@@ -1,100 +1,125 @@
+import json
+import os
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
-# التوكن الخاص ببوتك
-BOT_TOKEN = "9286755149:AAHa4vlDxauu1_SCtWPXMdBdKjbx053CzVE"
-# الأيدي الخاص بك كمدير لتستقبل الإشعارات والطلبات عليه
+# التوكن الخاص ببوتك والأيدي الخاص بك
+BOT_TOKEN = "9286755149:AAHa4vldXauu1_SCtWPXMdBdKjbx053" 
 ADMIN_ID = 1449111290
 
 bot = telebot.TeleBot(BOT_TOKEN)
 bot.remove_webhook()
 
-# ----------------- القائمة الرئيسية للمستخدم -----------------
+ACCOUNTS_FILE = "ichancy_accounts.json"
+user_states = {}
+
+def load_accounts():
+    if not os.path.exists(ACCOUNTS_FILE):
+        return {}
+    with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+
+def save_accounts(accounts):
+    with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(accounts, f, ensure_ascii=False, indent=4)
+
+# القائمة الرئيسية المحدثة (تتضمن أزرارك القديمة والجديدة معا)
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(KeyboardButton("💳 شحن رصيد"), KeyboardButton("💸 سحب أموال"))
-    markup.row(KeyboardButton("📞 الدعم الفني"))
+    # الأزرار الجديدة الخاصة بحسابات iChancy
+    markup.row(KeyboardButton("📥 إنشاء حساب iChancy"), KeyboardButton("👤 معلومات الحساب"))
+    # أزرارك القديمة (يمكنك تعديل أسمائها إذا كانت مختلفة قليلاً)
+    markup.row(KeyboardButton("💳 شحن رصيد"), KeyboardButton("🛠 الدعم الفني"))
     return markup
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.send_message(
-        message.chat.id, 
-        "أهلاً بك في منصة الخدمات الرقمية! اختر من القائمة أدناه:", 
+        message.chat.id,
+        "مرحباً بك! اختر ما تحتاجه من القائمة أدناه:",
         reply_markup=main_menu()
     )
 
-# ----------------- طلب شحن الرصيد -----------------
-@bot.message_handler(func=lambda msg: msg.text == "💳 شحن رصيد")
-def deposit_request(message):
-    msg = bot.send_message(message.chat.id, "أدخل المبلغ الذي ترغب بشحنه:")
-    bot.register_next_step_handler(msg, process_deposit)
+@bot.message_handler(func=lambda message: True)
+def handle_messages(message):
+    user_id_str = str(message.from_user.id)
+    accounts = load_accounts()
+    text = message.text
 
-def process_deposit(message):
-    amount = message.text
-    user_info = f"👤 مستخدم: @{message.from_user.username or message.from_user.first_name} (ID: `{message.from_user.id}`)"
-    
-    # إرسال إشعار للمدير مع أزرار التحكم
-    admin_markup = InlineKeyboardMarkup()
-    admin_markup.row(
-        InlineKeyboardButton("✅ قبول", callback_data=f"approve_dep_{message.from_user.id}_{amount}"),
-        InlineKeyboardButton("❌ رفض", callback_data=f"reject_dep_{message.from_user.id}")
-    )
-    
-    bot.send_message(
-        ADMIN_ID, 
-        f"📥 **طلب شحن جديد**\n\n{user_info}\n💰 المبلغ: {amount}", 
-        parse_mode="Markdown", 
-        reply_markup=admin_markup
-    )
-    bot.send_message(message.chat.id, "تم إرسال طلب الشحن إلى الإدارة لتمحيصه وتأكيده.")
+    # 1. زر إنشاء حساب iChancy
+    if text == "📥 إنشاء حساب iChancy":
+        if user_id_str in accounts:
+            acc = accounts[user_id_str]
+            bot.send_message(
+                message.chat.id,
+                f"⚠️ لديك حساب مسجل مسبقاً ولا يمكنك إنشاء حساب آخر!\n\n"
+                f"👤 اسم المستخدم: {acc['username']}\n"
+                f"🔑 كلمة المرور: {acc['password']}",
+                reply_markup=main_menu()
+            )
+        else:
+            user_states[user_id_str] = "waiting_for_ichancy_credentials"
+            bot.send_message(
+                message.chat.id,
+                "📝 يرجى إرسال **الاسم** و**كلمة السر** التي ترغب بهما لحساب iChancy (في رسالة واحدة):\n\n"
+                "مثال:\n`اسم_المستخدم كلمة_السر`",
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardRemove()
+            )
 
-# ----------------- طلب سحب الأموال -----------------
-@bot.message_handler(func=lambda msg: msg.text == "💸 سحب أموال")
-def withdraw_request(message):
-    msg = bot.send_message(message.chat.id, "أدخل المبلغ المراد سحبه ورقم المحفظة:")
-    bot.register_next_step_handler(msg, process_withdraw)
+    # 2. زر معلومات الحساب
+    elif text == "👤 معلومات الحساب":
+        if user_id_str in accounts:
+            acc = accounts[user_id_str]
+            bot.send_message(
+                message.chat.id,
+                f"📋 معلومات حسابك الحالي:\n\n"
+                f"👤 اسم المستخدم: {acc['username']}\n"
+                f"🔑 كلمة المرور: {acc['password']}",
+                reply_markup=main_menu()
+            )
+        else:
+            bot.send_message(
+                message.chat.id,
+                "❌ ليس لديك أي حساب مسجل بعد. اضغط على زر '📥 إنشاء حساب iChancy' للبدء.",
+                reply_markup=main_menu()
+            )
 
-def process_withdraw(message):
-    details = message.text
-    user_info = f"👤 مستخدم: @{message.from_user.username or message.from_user.first_name} (ID: `{message.from_user.id}`)"
-    
-    admin_markup = InlineKeyboardMarkup()
-    admin_markup.row(
-        InlineKeyboardButton("✅ تم التحويل", callback_data=f"approve_with_{message.from_user.id}"),
-        InlineKeyboardButton("❌ رفض الطلب", callback_data=f"reject_with_{message.from_user.id}")
-    )
-    
-    bot.send_message(
-        ADMIN_ID, 
-        f"📤 **طلب سحب جديد**\n\n{user_info}\n📝 التفاصيل: {details}", 
-        parse_mode="Markdown", 
-        reply_markup=admin_markup
-    )
-    bot.send_message(message.chat.id, "تم استلام طلب السحب، سيتم المعالجة قريباً.")
+    # 3. استقبال البيانات المدخلة من الزبون وإرسالها للإدارة
+    elif user_states.get(user_id_str) == "waiting_for_ichancy_credentials":
+        user_states.pop(user_id_str, None)
+        
+        # إرسال البيانات لك (المشرف)
+        admin_msg = (
+            f"🔔 **طلب إنشاء حساب iChancy جديد!**\n\n"
+            f"👤 اسم الزبون: {message.from_user.first_name}\n"
+            f"🆔 الآيدي: `{message.from_user.id}`\n"
+            f"🔗 المعرف: @{message.from_user.username or 'لا يوجد'}\n\n"
+            f"📥 البيانات المطلوبة:\n{text}"
+        )
+        bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
 
-# ----------------- معالجة قرارات المدير -----------------
-@bot.callback_query_handler(func=lambda call: True)
-def handle_admin_action(call):
-    data = call.data.split("_")
-    action = data[0]
-    type_req = data[1]
-    target_user_id = int(data[2])
+        # حفظ طلب الزبون مؤقتاً
+        accounts[user_id_str] = {
+            "username": text,
+            "password": "قيد الإنشاء من قبل الإدارة..."
+        }
+        save_accounts(accounts)
 
-    if action == "approve":
-        amount_info = f" بمبلغ {data[3]}" if len(data) > 3 else ""
-        bot.send_message(target_user_id, f"🎉 تم قبول طلبك{amount_info} بنجاح!")
-        bot.answer_callback_query(call.id, "تم قبول الطلب وإشعار المستخدم.")
-        bot.edit_message_text(f"{call.message.text}\n\n✅ **حالة الطلب: مقبول**", ADMIN_ID, call.message.message_id)
-    
-    elif action == "reject":
-        bot.send_message(target_user_id, "❌ للأسف، تم رفض طلبك من قبل الإدارة.")
-        bot.answer_callback_query(call.id, "تم رفض الطلب وإشعار المستخدم.")
-        bot.edit_message_text(f"{call.message.text}\n\n❌ **حالة الطلب: مرفوض**", ADMIN_ID, call.message.message_id)
+        bot.send_message(
+            message.chat.id,
+            "✅ تم إرسال طلبك إلى الإدارة بنجاح!\nسيتم إنشاء الحساب وإرسال التفاصيل لك فوراً.",
+            reply_markup=main_menu()
+        )
+        
+    # أزرارك القديمة (يمكنك تركها أو تعديل استجابتها لاحقاً)
+    elif text == "💳 شحن رصيد":
+        bot.send_message(message.chat.id, "لشحن الرصيد، يرجى التواصل مع الإدارة.", reply_markup=main_menu())
+        
+    elif text == "🛠 الدعم الفني":
+        bot.send_message(message.chat.id, "أهلاً بك، يرجى كتابة مشكلتك ليتم الرد عليك.", reply_markup=main_menu())
 
-# ----------------- الدعم الفني -----------------
-@bot.message_handler(func=lambda msg: msg.text == "📞 الدعم الفني")
-def support(message):
-    bot.send_message(message.chat.id, "لتواصل مباشر مع الدعم الفني، يرجى مراسلة الحساب: @YourSupportHandle")
-
-bot.infinity_polling()
+bot.polling(none_stop=True)
