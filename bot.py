@@ -3,8 +3,8 @@ import os
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
-# التوكن الخاص ببوتك والأيدي الخاص بك
-BOT_TOKEN = "9286755149:AAHa4vldXauu1_SCtWPXMdBdKjbx053" 
+# التوكن الصحيح للبوت والأيدي الخاص بك
+BOT_TOKEN = "9286755149:AAHa4vldXauu1_SCtWPXMdBdKjbx053CzVE" 
 ADMIN_ID = 1449111290
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -26,12 +26,10 @@ def save_accounts(accounts):
     with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
         json.dump(accounts, f, ensure_ascii=False, indent=4)
 
-# القائمة الرئيسية المحدثة (تتضمن أزرارك القديمة والجديدة معا)
+# القائمة الرئيسية (تتضمن أزرارك القديمة والجديدة معا)
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    # الأزرار الجديدة الخاصة بحسابات iChancy
     markup.row(KeyboardButton("📥 إنشاء حساب iChancy"), KeyboardButton("👤 معلومات الحساب"))
-    # أزرارك القديمة (يمكنك تعديل أسمائها إذا كانت مختلفة قليلاً)
     markup.row(KeyboardButton("💳 شحن رصيد"), KeyboardButton("🛠 الدعم الفني"))
     return markup
 
@@ -49,7 +47,6 @@ def handle_messages(message):
     accounts = load_accounts()
     text = message.text
 
-    # 1. زر إنشاء حساب iChancy
     if text == "📥 إنشاء حساب iChancy":
         if user_id_str in accounts:
             acc = accounts[user_id_str]
@@ -70,7 +67,6 @@ def handle_messages(message):
                 reply_markup=ReplyKeyboardRemove()
             )
 
-    # 2. زر معلومات الحساب
     elif text == "👤 معلومات الحساب":
         if user_id_str in accounts:
             acc = accounts[user_id_str]
@@ -88,11 +84,9 @@ def handle_messages(message):
                 reply_markup=main_menu()
             )
 
-    # 3. استقبال البيانات المدخلة من الزبون وإرسالها للإدارة
     elif user_states.get(user_id_str) == "waiting_for_ichancy_credentials":
         user_states.pop(user_id_str, None)
         
-        # إرسال البيانات لك (المشرف)
         admin_msg = (
             f"🔔 **طلب إنشاء حساب iChancy جديد!**\n\n"
             f"👤 اسم الزبون: {message.from_user.first_name}\n"
@@ -102,7 +96,6 @@ def handle_messages(message):
         )
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
 
-        # حفظ طلب الزبون مؤقتاً
         accounts[user_id_str] = {
             "username": text,
             "password": "قيد الإنشاء من قبل الإدارة..."
@@ -115,7 +108,6 @@ def handle_messages(message):
             reply_markup=main_menu()
         )
         
-    # أزرارك القديمة (يمكنك تركها أو تعديل استجابتها لاحقاً)
     elif text == "💳 شحن رصيد":
         bot.send_message(message.chat.id, "لشحن الرصيد، يرجى التواصل مع الإدارة.", reply_markup=main_menu())
         
