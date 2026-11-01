@@ -4,7 +4,7 @@ import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 # التوكن الصحيح للبوت والأيدي الخاص بك
-BOT_TOKEN = "9286755149:AAHa4vldXauu1_SCtWPXMdBdKjbx053CzVE" 
+BOT_TOKEN = "9286755149:AAHopKGYhZhaCWyvC0U7vZV2FXXm0_jitKA"
 ADMIN_ID = 1449111290
 
 bot = telebot.TeleBot(BOT_TOKEN)
