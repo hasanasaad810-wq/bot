@@ -7,6 +7,7 @@ BOT_TOKEN = "9286755149:AAHa4vlDxauu1_SCtWPXMdBdKjbx053CzVE"
 ADMIN_ID = 1449111290
 
 bot = telebot.TeleBot(BOT_TOKEN)
+bot.remove_webhook()
 
 # ----------------- القائمة الرئيسية للمستخدم -----------------
 def main_menu():
